@@ -1,0 +1,510 @@
+//---------------------------------------------------------------------------
+
+#pragma hdrstop
+
+#include "KeyboardBinding.h"
+//---------------------------------------------------------------------------
+#pragma package( smart_init )
+
+// class TKeyboardBinding
+
+__fastcall TKeyboardBinding::TKeyboardBinding( TShortCut *keys, int nSK ) //: TDGHNotifierObject( "" )
+{
+	ShowMessage( "Constr" );
+	/*this->keys = keys;
+	// this->lastShortKey = TypeCommentBlock::None;
+	this->numShortKeys = nSK;*/
+	// list = new TInterfaceList( );
+}
+
+__fastcall TKeyboardBinding::~TKeyboardBinding( )
+{
+}
+
+TBindingType __fastcall TKeyboardBinding::GetBindingType( )
+{
+	return TBindingType::btPartial;
+}
+
+System::UnicodeString __fastcall TKeyboardBinding::GetDisplayName( )
+{
+	return L"Debugging Tools Bindings";
+}
+
+System::UnicodeString __fastcall TKeyboardBinding::GetName( )
+{
+	return L"DebuggingToolsBindings";
+}
+
+void __fastcall TKeyboardBinding::BindKeyboard( const _di_IOTAKeyBindingServices BindingServices )
+{
+	// if(BorlandIDEServices->Supports(BindingServices)){
+	// BindingServices->AddKeyBinding( &keys[ 0 ], 0, duplicateBlock, 0 );
+	// BindingServices->AddKeyBinding( &keys[ 1 ], 0, addCommentary, 0 );
+	BindingServices->AddKeyBinding( &keys[ 0 ], 0, addCommentarySelectedText, 0 );
+	// BindingServices->AddKeyBinding( &keys[ 3 ], 0, deleteLineComment, 0 );
+	// BindingServices->AddKeyBinding( &keys[ 4 ], 0, addLineComment, 0 );
+	// BindingServices->AddKeyBinding( &keys[ 5 ], 0, commentCode, 0 );
+	// MessageDlg("OKKK", mtInformation, TMsgDlgButtons() << mbOK, 0);
+	//}
+}
+
+System::UnicodeString __fastcall readEOF( _di_IOTAEditPosition EditPosition )
+{
+	int currnetRow = EditPosition->GetRow( );
+	int nCharacters = 0;
+	System::UnicodeString text, row;
+
+	while ( currnetRow++ != EditPosition->GetLastRow( ) ) {
+		EditPosition->GotoLine( currnetRow );
+		EditPosition->MoveEOL( );
+		nCharacters = EditPosition->GetColumn( );
+		EditPosition->MoveBOL( );
+		row = EditPosition->Read( nCharacters );
+		text += row;
+	}
+
+	return text;
+}
+
+bool readUpToDelimiter( _di_IOTAEditPosition EditPosition, System::UnicodeString &currentText, int &currentRow, int lastRow )
+{
+	System::UnicodeString del = "//---";
+	int del_length = del.Length( );
+	System::UnicodeString text = "", aux;
+	unsigned int tab_magnitude = 4;
+	int i = 0;
+	int characteres = 0;
+
+	currentText = "";
+	EditPosition->GotoLine( currentRow );
+	System::WideChar prev_ch = ' ';
+	int contTabs = 0;
+	while ( currentRow <= lastRow /*EditPosition->GetLastRow( )*/ ) {
+		// EditPosition->MoveEOL( );
+		// int characteres = EditPosition->GetColumn( );
+		EditPosition->MoveBOL( );
+		characteres = 0;
+		int col = 1;
+		prev_ch = ' ';
+		contTabs = 0;
+		while ( EditPosition->GetCharacter( ) != '\r' ) {
+			System::WideChar ch = EditPosition->GetCharacter( );
+			if ( prev_ch == '\t' && ch == '\t' ) {
+				contTabs++;
+			}
+
+			int r = EditPosition->GetRow( );
+			int c = col;
+			EditPosition->Move( EditPosition->GetRow( ), ++col );
+			if ( ch != '\t' || /*( ch == '\t' && prev_ch != '\t' )*/ ( contTabs % 4 ) == 0 ) {
+				characteres++;
+			}
+			prev_ch = ch;
+		}
+		characteres++;
+		EditPosition->MoveBOL( );
+		text = EditPosition->Read( characteres + 1 );
+		if ( ( aux = text.SubString( 0, del_length ) ) == del ) {
+			return false;
+		}
+		currentText += text;
+		i += text.Length( );
+		currentRow++;
+		EditPosition->GotoLine( currentRow );
+	}
+
+	return true;
+}
+
+bool processCommentary( _di_IOTAEditPosition &EditPosition, int nCharactersCurrnetLine, int &currentRow, int lastRow, TOTACharPos BlockStart, TOTACharPos BlockAfter )
+{
+	System::UnicodeString text, res, currentText;
+	std::wstring wsin;
+	std::string in;
+	char *out, *str;
+	unsigned int out_size;
+	int initRow;
+	bool EOBlock = false;
+
+	initRow = currentRow++;
+	EditPosition->MoveBOL( );
+	currentText = EditPosition->Read( nCharactersCurrnetLine );
+	wsin = currentText.c_str( );
+	in.resize( wsin.length( ) );
+	wcstombs( &in[ 0 ], wsin.c_str( ), wsin.size( ) );
+	// Tema tabulaciones (Si existen tabulaciones en la línea a leer, coger carácteres de la siguiente también)
+	std::string::iterator it = in.end( ) - 1;
+	while ( in.length( ) > 1 && *it != '\r' && *it != '\n' ) {
+		it--;
+	}
+	in.erase( it + 1, in.end( ) );
+
+	str = new char[ in.length( ) + 1 ];
+	strcpy_s( str, in.size( ) + 1, in.c_str( ) );
+	// char CR[] = { '\r', '\0' };
+	char **CR = new char *[ 2 ];
+	CR[ 0 ] = new char[ 2 ];
+	CR[ 1 ] = new char[ 2 ];
+	CR[ 0 ][ 0 ] = '\r';
+	CR[ 0 ][ 1 ] = '\0';
+	CR[ 1 ][ 0 ] = ' ';
+	CR[ 1 ][ 1 ] = '\0';
+	if ( strcmp( str, CR[ 0 ] ) == 0 || strcmp( str, CR[ 1 ] ) == 0 ) {
+		out_size = 0;
+		out = 0;
+	} else {
+		WrapperParser::parseString( str, (unsigned int) in.length( ), out, out_size );
+	}
+
+	for ( int i = 0; i < 2; i++ )
+		delete[] CR[ 0 ];
+	delete CR;
+
+	if ( out_size == in.length( ) + 2 ) {
+		EOBlock = readUpToDelimiter( EditPosition, currentText, --currentRow, lastRow );
+
+		wsin = currentText.c_str( );
+		in.resize( wsin.length( ) );
+		wcstombs( &in[ 0 ], wsin.c_str( ), wsin.size( ) );
+		str = new char[ in.length( ) + 1 ];
+		strcpy_s( str, in.size( ) + 1, in.c_str( ) );
+		WrapperParser::parseString( str, (unsigned int) in.length( ), out, out_size );
+	}
+
+	if ( out && out_size != in.length( ) + 2 ) {
+		System::UnicodeString out_aux = out;
+
+		while ( ( out_aux.Length( ) > 1 && ( out_aux[ out_aux.Length( ) ] == '\n' && out_aux[ out_aux.Length( ) - 1 ] == '\n' ) || ( out_aux[ out_aux.Length( ) ] == '\r' && out_aux[ out_aux.Length( ) - 1 ] == '\n' ) ) || ( out_aux.Length( ) > 2 && out_aux[ out_aux.Length( ) ] == '\n' && out_aux[ out_aux.Length( ) - 1 ] == '\r' && out_aux[ out_aux.Length( ) - 2 ] == '\n' ) ) {
+			out_aux.Delete( out_aux.Length( ), out_aux.Length( ) );
+		}
+
+		int i = 0;
+		EditPosition->GotoLine( initRow );
+		EditPosition->Save( );
+		int ll1 = EditPosition->DistanceToTab( sdForward );
+		int ll2 = EditPosition->DistanceToTab( sdBackward );
+		wsin = currentText.c_str( );
+		int nc = 0;
+		int space = 0;
+		bool notSpace = false;
+
+		int numCharacters = 0;
+		System::WideChar prev_ch = ' ';
+		int contTabsIni = 0, contTabs = 0;
+		for ( int i = BlockStart.Line; i <= BlockAfter.Line; i++ ) {
+			EditPosition->GotoLine( i );
+			int col = 1;
+			prev_ch = ' ';
+			contTabs = 0;
+			while ( EditPosition->GetCharacter( ) != '\r' ) {
+				System::WideChar ch = EditPosition->GetCharacter( );
+				if ( i == BlockStart.Line && !notSpace ) {
+					if ( i == BlockStart.Line && ch != '\t' && ch != ' ' ) {
+						notSpace = true;
+					} else {
+						if ( !notSpace ) {
+							if ( ch == '\t' ) {
+								contTabsIni++;
+								if ( ( contTabsIni % 4 ) == 0 ) {
+									space += 4;
+								}
+							} else {
+								space++;
+							}
+						}
+					}
+				}
+
+				if ( prev_ch == '\t' && ch == '\t' ) {
+					contTabs++;
+				}
+
+				int r = EditPosition->GetRow( );
+				int c = col;
+				EditPosition->Move( EditPosition->GetRow( ), ++col );
+				if ( ch != '\t' || /*( ch == '\t' && prev_ch != '\t' )*/ ( contTabs % 4 ) == 0 ) {
+					numCharacters++;
+				}
+				prev_ch = ch;
+			}
+			numCharacters++;
+		}
+
+		int initLine = BlockStart.Line;
+		EditPosition->GotoLine( BlockStart.Line );
+		EditPosition->Delete( numCharacters );
+
+		int row = EditPosition->GetRow( );
+
+		wchar_t prev_character = ' ';
+		int cont_characters = 0;
+		for ( wchar_t &character : out_aux ) {
+			if ( out_aux.Length( ) - cont_characters <= 2 ) break;
+			int lii = EditPosition->GetRow( );
+			if ( prev_character == '\r' && character != '\n' ) {
+				EditPosition->MoveBOL( );
+				EditPosition->InsertCharacter( character );
+			} else if ( character == '\n' ) {
+				EditPosition->MoveBOL( );
+			} else {
+				EditPosition->InsertCharacter( character );
+			}
+			prev_character = character;
+			cont_characters++;
+		}
+		EditPosition->InsertCharacter( '\n' );
+
+		System::UnicodeString spaces = L"";
+		for ( int i = 0; i < space; i++ ) {
+			spaces += " ";
+		}
+
+		if ( space > 0 ) {
+			int r = EditPosition->GetRow( );
+			for ( int i = initRow; i < r; i++ ) {
+				EditPosition->GotoLine( i );
+				EditPosition->MoveBOL( );
+				int col = EditPosition->GetColumn( );
+
+				if ( EditPosition->GetCharacter( ) != '\t' ) EditPosition->InsertText( spaces );
+			}
+		}
+	}
+
+	return EOBlock;
+}
+
+void __fastcall TKeyboardBinding::addCommentarySelectedText( const _di_IOTAKeyContext Context, System::Classes::TShortCut KeyCode, TKeyBindingResult &BindingResult )
+{
+	_di_IOTAModuleServices ModuleServices;
+	_di_IOTAModule Module;
+	_di_IOTAEditor Intf;
+	_di_IOTASourceEditor Editor;
+	_di_IOTAEditView View;
+	_di_IOTAEditPosition EditPosition;
+	_di_IOTAEditLineTracker EditLineTracker;
+	TOTACharPos BlockStart, BlockAfter;
+	int l, line, currentRow, lastRow, numCharacters, id, blockSize;
+	System::UnicodeString currentText;
+	bool stop;
+
+	EditPosition = Context->GetEditBuffer( )->GetEditPosition( );
+	if ( BorlandIDEServices->Supports( ModuleServices ) ) {
+		Module = ModuleServices->CurrentModule( );
+
+		if ( !Module ) {
+			BindingResult = krUnhandled;
+			return;
+		}
+
+		for ( int i = 0; i < Module->GetModuleFileCount( ); i++ ) {
+			Intf = Module->GetModuleFileEditor( i );
+			if ( Intf->QueryInterface( __uuidof( IOTASourceEditor ), (void **) ( &Editor ) ) == S_OK ) {
+				break;
+			}
+		}
+
+		if ( !Editor ) {
+			BindingResult = krUnhandled;
+			return;
+		}
+
+		View = Editor->EditViews[ 0 ];
+		BlockStart = Editor->GetBlockStart( );
+		BlockAfter = Editor->GetBlockAfter( );
+		EditLineTracker = View->GetBuffer( )->GetEditLineTracker( );
+		// View->GetBuffer( )->GetBufferOptions( )->SetUndoLimit( 800 );
+		// id = EditLineTracker->AddNotifier( new LineNotifier( EditLineTracker ) );
+		LineNotifier *lineNotifier = new LineNotifier( EditLineTracker );
+
+		int linesB = Editor->GetLinesInBuffer( );
+		TOTABlockType bType = Editor->GetBlockType( );
+		currentRow = EditPosition->GetRow( );
+
+		if ( BlockStart.Line > currentRow ) {
+			line = lastRow = currentRow;
+			blockSize = 1;
+		} else {
+			line = BlockStart.Line;
+			lastRow = BlockAfter.Line;
+			blockSize = lastRow - line + 1;
+		}
+
+		for ( int i = line; i <= lastRow; i++ ) {
+			EditLineTracker->AddLine( i, 0 );
+		}
+
+		stop = false;
+		l = 0;
+		// EditPosition->Tab( 4 );
+		while ( !stop && l < blockSize ) {
+			EditPosition->GotoLine( line );
+			EditPosition->MoveBOL( );
+			// int pos1 = EditPosition->DistanceToTab( sdForward );
+			// int pos = EditPosition->DistanceToTab( sdBackward );
+			// numCharacters = EditPosition->GetColumn( );
+			numCharacters = 0;
+			int col = 1;
+			while ( EditPosition->GetCharacter( ) != '\r' ) {
+				numCharacters++;
+				System::WideChar ch = EditPosition->GetCharacter( );
+				int r = EditPosition->GetRow( );
+				int c = col;
+				EditPosition->Move( EditPosition->GetRow( ), col++ );
+			}
+			numCharacters++;
+			stop = processCommentary( EditPosition, numCharacters, line, lastRow, BlockStart, BlockAfter );
+			TOTACharPos aa = Editor->GetBlockStart( );
+			int nose = EditLineTracker->GetCount( );
+			for ( int i = 0; i < EditLineTracker->GetCount( ); i++ ) {
+				nose = EditLineTracker->GetLineNum( i );
+			}
+
+			if ( ++l < EditLineTracker->GetCount( ) ) {
+				line = EditLineTracker->GetLineNum( l );
+				lastRow = EditLineTracker->GetLineNum( EditLineTracker->GetCount( ) - 1 );
+			}
+			/*if ( l < EditLineTracker->GetCount( ) ) {
+				line = EditLineTracker->GetLineNum( l++ );
+				lastRow = EditLineTracker->GetLineNum( EditLineTracker->GetCount( ) - 1 );
+			} else {
+				line = -1;
+			}*/
+		}
+
+		delete lineNotifier;
+		int pp = EditLineTracker->GetCount( );
+
+		// EditLineTracker->RemoveNotifier( id );
+		Editor->Show( );
+	}
+
+	BindingResult = krHandled;
+}
+
+void replaceTabs( _di_IOTAEditPosition EditPosition, int currentRow )
+{
+	int i = 1;
+
+	EditPosition->GotoLine( currentRow );
+	EditPosition->MoveBOL( );
+
+	System::WideChar ch = EditPosition->GetCharacter( );
+	while ( ch != '\r' ) {
+		if ( ch == '\t' ) {
+			EditPosition->Delete( 1 );
+			System::WideChar ccc = EditPosition->GetCharacter( );
+			// EditPosition->Tab( 4 );
+			for ( int i = 0; i < 4; i++ )
+				EditPosition->InsertCharacter( ' ' );
+		}
+
+		EditPosition->Move( currentRow, ++i );
+		ch = EditPosition->GetCharacter( );
+	}
+}
+
+System::UnicodeString __fastcall readNLines( _di_IOTAEditPosition EditPosition, int currentRow, int lastRow )
+{
+	int nCharacters = 0;
+	System::UnicodeString text, row;
+
+	text = "";
+	while ( currentRow != lastRow + 1 ) {
+		EditPosition->GotoLine( currentRow );
+		EditPosition->MoveEOL( );
+		replaceTabs( EditPosition, currentRow );
+		// EditPosition->GotoLine( currentRow );
+		int r = EditPosition->GetRow( );
+		nCharacters = EditPosition->GetColumn( ) + 1;
+		EditPosition->MoveBOL( );
+		row = EditPosition->Read( nCharacters );
+		System::UnicodeString row2 = row;
+		auto ch = *row.LastChar( );
+		if ( *row.LastChar( ) == '\r' ) {
+			row.Insert( '\n', row.Length( ) + 1 );
+			EditPosition->MoveEOL( );
+			EditPosition->InsertCharacter( '\n' );
+		}
+		System::UnicodeString row3 = row;
+		text += row;
+		currentRow++;
+	}
+
+	return text;
+}
+
+// IOTANotifer
+void __fastcall TKeyboardBinding::BeforeSave( )
+{
+	inherited::BeforeSave( );
+}
+
+void __fastcall TKeyboardBinding::AfterSave( )
+{
+	inherited::AfterSave( );
+}
+
+void __fastcall TKeyboardBinding::Destroyed( )
+{
+	inherited::Destroyed( );
+}
+
+void __fastcall TKeyboardBinding::Modified( )
+{
+	inherited::Modified( );
+}
+
+ULONG __stdcall TKeyboardBinding::AddRef( )
+{
+	return inherited::AddRef( );
+}
+ULONG __stdcall TKeyboardBinding::Release( )
+{
+	return inherited::Release( );
+}
+
+HRESULT __stdcall TKeyboardBinding::QueryInterface( const GUID &iid, void **obj )
+{
+	QUERY_INTERFACE( IOTAKeyboardBinding, iid, obj );
+	// QUERY_INTERFACE(IOTAWizard, iid, obj);
+	return inherited::QueryInterface( iid, obj );
+}
+
+int __fastcall AddKeyBoardBindingObject( TKeyboardBinding *KeyBoardBinding )
+{
+	ShowMessage( "1" );
+	_di_IOTAKeyboardServices IOTAKeyboardBinding;
+	int numShortKeys = 5;
+
+	if ( BorlandIDEServices->Supports( IOTAKeyboardBinding ) ) {
+		ShowMessage( "2" );
+		TShortCut *keys = new TShortCut[ numShortKeys ];
+		// keys[ 0 ] = TextToShortCut( "Ctrl+Shift+D" );
+		// keys[ 1 ] = TextToShortCut( "Ctrl+Shift+G" );
+		keys[ 0 ] = TextToShortCut( "Ctrl+Shift+H" );
+		// keys[ 3 ] = TextToShortCut( "Ctrl+Shift+F1" );
+		// keys[ 4 ] = TextToShortCut( "Ctrl+Shift+F2" );
+		// keys[ 5 ] = TextToShortCut( "Ctrl+Shift+F3" );
+
+		KeyBoardBinding = new TKeyboardBinding( keys, numShortKeys );
+
+		/*return IOTAKeyboardBinding->AddKeyboardBinding( KeyBoardBinding );*/
+	}
+
+	ShowMessage( "3" );
+
+	return -1;
+}
+
+void __fastcall RemoveKeyboardBinding( int IDEKeyBoardBinding )
+{
+	_di_IOTAKeyboardServices IOTAKeyboardServices;
+
+	if ( BorlandIDEServices->Supports( IOTAKeyboardServices ) ) {
+		if ( IDEKeyBoardBinding > -1 ) {
+			IOTAKeyboardServices->RemoveKeyboardBinding( IDEKeyBoardBinding );
+		}
+	}
+}

@@ -1,0 +1,5 @@
+// Global variables
+#include "CPPOTATemplateMainWizard.h"
+
+extern CommentBlock rangeComment;
+

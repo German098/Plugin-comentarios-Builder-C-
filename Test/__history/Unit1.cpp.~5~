@@ -1,0 +1,27 @@
+Unit11111111111111111111111111111111111111111111 class SelectedElementType
+{
+	All = -1, NoSelected = 0, UserSelection = 1, LoopSelection = 2, LastBeforeUserSelection = 3, LastUserSelection = 4, AllSelected = 5, Seam = 6, Crease = 7
+}; // el Seam o crease no entra dentro de la seleccion
+enum class TExtrudeType { NormalFace, Direction, GroupFacesByNormal, GroupFacesByVertexNormal, Solidify };
+enum class TExtrudeEdgeType { ByEdges, ByEdges_UnifiedDir, ByNormalVertex, ByAxis, ByDirection };
+enum class TCollapseVertexsType { AtCenter, AtFirst, AtLast, ByDistance };
+enum class TProportionalEditingType { Smooth, Sphere, Root, InverseSquare, Sharp, Linear, Constant, Random };
+
+void InitAddedElements( TAddedElements *addedElements );
+void IncludeToAddedElements( TAddedElements *ae, TAddedElements *aeToInclude );
+IwTA<IwPolyEdge *> GetEdgesWithSameIndex( TAddedElements *addedElements, ULONG iIndex2 );
+IwTA<IwPolyFace *> GetFacesWithSameIndex( TAddedElements *addedElements, ULONG iIndex2 );
+
+struct TAddedElements {
+	IwTA<IwPolyVertex *> iwVertexs;
+	IwTA<IwPolyEdge *> iwEdges;
+};
+
+int a;
+int b;
+
+TCadEntity *RefEnt;
+IwPolyBrep *PBrep;
+TColor AuxEntityColor[ 5 ];
+bool DirtyFaceSel, DirtyEdgeSel;
+

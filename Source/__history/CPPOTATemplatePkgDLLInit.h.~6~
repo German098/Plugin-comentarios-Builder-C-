@@ -1,0 +1,13 @@
+//---------------------------------------------------------------------------
+
+#ifndef CPPOTATemplatePkgDLLInitH
+#define CPPOTATemplatePkgDLLInitH
+//---------------------------------------------------------------------------
+#endif
+
+#include <ToolsAPI.hpp> // For this to be found and all other OTA header files add
+						// $(BDSINCLUDE)\windows\vcl\design\ to the projects include list.
+
+// extern DELPHI_PACKAGE HRESULT __stdcall DllRegisterServer( );
+_di_IBorlandIDEServices LocalIDEServices;
+

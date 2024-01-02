@@ -1,0 +1,38 @@
+//---------------------------------------------------------------------------
+
+#ifndef TApplicationMainMenuH
+#define TApplicationMainMenuH
+
+#include <Vcl.Menus.hpp>
+#include <Vcl.ExtActns.hpp>
+//---------------------------------------------------------------------------
+
+class PACKAGE TApplicationMainMenu
+{
+  private:
+	// TMenuItem *FOTAMainMenu;
+	TTimer *FPatchTimer;
+
+  protected:
+	void __fastcall InstallMainMenu( ); // --
+	void __fastcall AutoSaveOptionsExecute( TObject *Sender );
+	void __fastcall AboutExecute( TObject *Sender );
+	void __fastcall ProjCreateWizardExecute( TObject *Sender );
+	void __fastcall ShowCompilerMessagesClick( TObject *Sender );
+	void __fastcall ShowCompilerMessagesUpdate( TObject *Sender );
+	void __fastcall ShowEditorMessagesClick( TObject *Sender );
+	void __fastcall ShowEditorMessagesUpdate( TObject *Sender );
+	void __fastcall ShowIDEMessagesClick( TObject *Sender );
+	void __fastcall ShowIDEMessagesUpdate( TObject *Sender );
+
+	void __fastcall PatchShortcuts( TObject *Sender );
+
+  public:
+	__fastcall TApplicationMainMenu( );
+	__fastcall ~TApplicationMainMenu( );
+};
+
+TObjectList *FOTAActions;
+
+#endif
+

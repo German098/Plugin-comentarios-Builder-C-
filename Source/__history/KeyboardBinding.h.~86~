@@ -1,0 +1,57 @@
+//---------------------------------------------------------------------------
+
+#ifndef KeyboardBindingH
+#define KeyboardBindingH
+
+#include <design/ToolsAPI.hpp>
+#include <list>
+#include "CPPOTATemplateIDENotifier.h"
+
+//---------------------------------------------------------------------------
+
+class PACKAGE TKeyboardBinding : public IOTAKeyboardBinding
+{
+	// typedef TDGHNotifierObject inherited;
+
+  private:
+	int numShortKeys;
+	// TypeCommentBlock lastShortKey;
+	TShortCut *keys;
+	void __fastcall addCommentarySelectedText( const _di_IOTAKeyContext Context, System::Classes::TShortCut KeyCode, TKeyBindingResult &BindingResult );
+	// bool __fastcall processCommentary( _di_IOTAEditPosition &EditPosition, int nCharactersCurrnetLine, int &currentRow, int lastRow, TOTACharPos BlockStart, TOTACharPos BlockAfter );
+
+  protected:
+	// IOTAKeyboardBinding
+	virtual TBindingType __fastcall GetBindingType( );
+	virtual System::UnicodeString __fastcall GetDisplayName( );
+	virtual System::UnicodeString __fastcall GetName( );
+	virtual void __fastcall BindKeyboard( const _di_IOTAKeyBindingServices BindingServices );
+	// IOTANotifer
+	void __fastcall BeforeSave( );
+	void __fastcall AfterSave( );
+	void __fastcall Destroyed( );
+	void __fastcall Modified( );
+	// IInterface
+	virtual HRESULT __stdcall QueryInterface( const GUID &iid, void **obj );
+	virtual ULONG __stdcall AddRef( );
+	virtual ULONG __stdcall Release( );
+
+  public:
+	__fastcall TKeyboardBinding( TShortCut *keys, int nSK );
+	__fastcall TKeyboardBinding( );
+	__fastcall ~TKeyboardBinding( );
+
+	TShortCut *__fastcall setKeys( TShortCut *keys )
+	{
+		this->keys = keys;
+	}
+
+	void __fastcall addCommentarySelectedText( );
+	void __fastcall Test( );
+};
+
+int __fastcall AddKeyBoardBindingObject( TKeyboardBinding *KeyBoardBinding );
+void __fastcall RemoveKeyboardBinding( int IDEKeyBoardBinding );
+
+#endif
+

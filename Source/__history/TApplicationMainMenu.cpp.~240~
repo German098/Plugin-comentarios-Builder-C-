@@ -1,0 +1,300 @@
+//---------------------------------------------------------------------------
+
+#pragma hdrstop
+
+#include "TApplicationMainMenu.h"
+#include <ToolsAPI.hpp>
+#include <string>
+//---------------------------------------------------------------------------
+#pragma package( smart_init )
+
+__fastcall TApplicationMainMenu::TApplicationMainMenu( )
+{
+	FOTAMainMenu = 0;
+	InstallMainMenu( );
+	FPatchTimer = new TTimer( 0 );
+	FPatchTimer->Interval = 1000;
+	FPatchTimer->OnTimer = PatchShortcuts;
+
+	FOTAActions = new TObjectList( true );
+}
+
+__fastcall TApplicationMainMenu::~TApplicationMainMenu( )
+{
+	if ( FOTAMainMenu ) FOTAMainMenu->Free( ); // delete[] FOTAMainMenu;
+	if ( FPatchTimer ) delete FPatchTimer;
+	if ( FOTAActions ) delete FOTAActions;
+}
+
+int AddImageToIDE( System::UnicodeString strImageName )
+{
+	_di_INTAServices NTAS;
+	TImageList *ilImages;
+	TBitmap *BM;
+	int res = -1;
+	std::wstring ws = ( strImageName + "Image" ).c_str( );
+	std::string ss;
+	ss.resize( ws.length( ) );
+	wcstombs( &ss[ 0 ], ws.c_str( ), ws.size( ) );
+
+	if ( FindResource( HInstance, ss.c_str( ), RT_BITMAP ) ) {
+		if ( BorlandIDEServices->Supports( NTAS ) ) {
+			ilImages = new TImageList( 0 );
+			BM = new TBitmap( );
+			BM->LoadFromResourceName( reinterpret_cast<unsigned>( HInstance ), strImageName + "Image" );
+			res = NTAS->AddImages( ilImages, "Image1" );
+
+			delete ilImages;
+			delete BM;
+		}
+	}
+
+	return res;
+}
+
+TMenuItem *IterateSubMenus( System::UnicodeString strParentMenu, TMenuItem *menu )
+{
+	int i, j;
+	TMenuItem *res = 0, *aux = 0;
+
+	/*for ( iSubMenu = 0; iSubMenu < menu.Count; iSubMenu++ ) {
+		if ( CompareText( strParentMenu, menu[ iSubMenu ]->Name ) ) {
+			res = menu[ iSubMenu ];
+		} else {
+			res = IterateSubMenus( strParentMenu, menu[ iSubMenu ] );
+		}
+
+		if ( !res ) {
+			break;
+		}
+	} */
+	aux = menu;
+	i = 0;
+	j = 0;
+	while ( i < aux->Count ) {
+		System::UnicodeString nn = aux[ i ].Name;
+		if ( CompareText( strParentMenu, aux[ i ].Name ) == 0 ) {
+			res = &aux[ i ];
+		} else {
+			aux = &menu[ j++ ];
+		}
+
+		if ( !res ) {
+			break;
+		}
+
+		i++;
+	}
+
+	return res;
+}
+
+TMenuItem *FindMenuItem( System::UnicodeString strParentMenu )
+{
+	int iMenu;
+	_di_INTAServices NTAS;
+	TMenuItem *Items;
+	TMenuItem *res = 0;
+
+	if ( BorlandIDEServices->Supports( NTAS ) ) {
+		for ( iMenu = 0; iMenu < NTAS->MainMenu->Items->Count - 1; iMenu++ ) {
+			Items = NTAS->MainMenu->Items;
+			System::UnicodeString ss = Items[ iMenu ].Name;
+			if ( CompareText( strParentMenu, Items[ iMenu ].Name ) == 0 ) {
+				res = &Items[ iMenu ];
+			} else {
+				res = IterateSubMenus( strParentMenu, Items );
+			}
+
+			if ( !res ) {
+				break;
+			}
+		}
+	}
+
+	return res;
+}
+
+TMenuItem *CreateMenuItem( System::UnicodeString strName, System::UnicodeString strCaption, System::UnicodeString strParentMenu, TNotifyEvent ClickProc, TNotifyEvent UpdateProc, bool boolBefore, bool boolChildMenu, System::UnicodeString strShortCut )
+{
+	_di_INTAServices NTAS;
+	TAction *CA;
+	TMenuItem *miMenuItem;
+	int iImageIndex;
+	TMenuItem *res = 0;
+
+	if ( BorlandIDEServices->Supports( NTAS ) ) {
+		iImageIndex = AddImageToIDE( strName );
+		CA = 0;
+		res = new TMenuItem( NTAS->GetMainMenu( ) );
+
+		if ( ClickProc != 0 ) {
+			CA = new TAction( NTAS->GetActionList( ) );
+			CA->ActionList = NTAS->GetActionList( );
+			CA->Name = strName + "Action";
+			CA->Caption = strCaption;
+			CA->OnExecute = ClickProc;
+			CA->OnUpdate = UpdateProc;
+			CA->ShortCut = TextToShortCut( strShortCut );
+			CA->Tag = TextToShortCut( strShortCut );
+			CA->ImageIndex = iImageIndex;
+			CA->Category = "OTATemplateMenus";
+			FOTAActions->Add( CA );
+		}
+
+		if ( strCaption != "" ) {
+			res->Caption = strCaption;
+			res->ShortCut = TextToShortCut( strShortCut );
+			res->ImageIndex = iImageIndex;
+		} else {
+			res->Caption = "-";
+		}
+
+		res->Action = CA;
+		res->Name = strName + "Menu";
+
+		miMenuItem = FindMenuItem( strParentMenu + "Menu" );
+		if ( miMenuItem ) {
+			if ( !boolChildMenu ) {
+				if ( boolBefore ) {
+					miMenuItem->Parent->Insert( miMenuItem->MenuIndex, res );
+				} else {
+					miMenuItem->Parent->Insert( miMenuItem->MenuIndex + 1, res );
+				}
+
+				miMenuItem->Add( res );
+			}
+		}
+	}
+
+	return res;
+}
+
+void __fastcall TApplicationMainMenu::InstallMainMenu( )
+{
+	_di_INTAServices NTAS;
+
+	if ( BorlandIDEServices->Supports( NTAS ) ) {
+		if ( NTAS && NTAS->GetMainMenu( ) ) {
+			FOTAMainMenu = CreateMenuItem( "OTATemplate", "OTA Template", "Tools", 0, 0, true, false, "" );
+			CreateMenuItem( "OTAAutoSaveOptions", "Auto Save &Option...", "OTATemplate", AutoSaveOptionsExecute, 0, false, true, "Ctrl+Shift+O" );
+			CreateMenuItem( "OTAProjectCreatorWizard", "&Project Creator Wizard...", "OTATemplate", ProjCreateWizardExecute, 0, false, true, "Ctrl+Shift+P" );
+			CreateMenuItem( "OTANotifiers", "Notifer Messages", "OTATemplate", 0, 0, false, true, "" );
+			CreateMenuItem( "OTAShowCompilerMsgs", "Show &Compiler Messages", "OTANotifiers", ShowCompilerMessagesClick, ShowCompilerMessagesUpdate, false, true, "" );
+			CreateMenuItem( "OTAShowEditorrMsgs", "Show &Editor Messages", "OTANotifiers", ShowEditorMessagesClick, ShowEditorMessagesUpdate, false, true, "" );
+			CreateMenuItem( "OTAShowIDEMsgs", "Show &IDE Messages", "OTANotifiers", ShowIDEMessagesClick, ShowIDEMessagesUpdate, false, true, "" );
+			CreateMenuItem( "OTASeparator0001", "", "OTATemplate", 0, 0, false, true, "" );
+			CreateMenuItem( "OTAAbout", "About...", "OTATemplate", AboutExecute, 0, false, true, "Ctrl+Shift+Q" );
+		}
+	}
+}
+
+void __fastcall TApplicationMainMenu::AboutExecute( TObject *Sender )
+{
+	ShowMessage( "OTA Template IDE Addin' #13 #10 'by David Hoyle." );
+}
+
+void __fastcall TApplicationMainMenu::ProjCreateWizardExecute( TObject *Sender )
+{
+}
+
+void __fastcall TApplicationMainMenu::AutoSaveOptionsExecute( TObject *Sender )
+{
+}
+
+void __fastcall TApplicationMainMenu::ShowEditorMessagesClick( TObject *Sender )
+{
+}
+
+void __fastcall TApplicationMainMenu::ShowEditorMessagesUpdate( TObject *Sender )
+{
+}
+
+void __fastcall TApplicationMainMenu::ShowIDEMessagesClick( TObject *Sender )
+{
+}
+
+void __fastcall TApplicationMainMenu::ShowIDEMessagesUpdate( TObject *Sender )
+{
+}
+
+void __fastcall TApplicationMainMenu::ShowCompilerMessagesClick( TObject *Sender )
+{
+}
+
+void __fastcall TApplicationMainMenu::ShowCompilerMessagesUpdate( TObject *Sender )
+{
+}
+
+void PatchActionShortcuts( TObject *Sender )
+{
+	int iAction;
+	TAction *A;
+
+	for ( iAction = 0; iAction < FOTAActions->Count - 1; iAction++ ) {
+		A = dynamic_cast<TAction *>( &FOTAActions[ iAction ] );
+		A->ShortCut = A->Tag;
+	}
+}
+
+void __fastcall TApplicationMainMenu::PatchShortcuts( TObject *Sender )
+{
+	if ( Application->MainForm->Visible ) {
+		PatchActionShortcuts( Sender );
+		FPatchTimer->Enabled = false;
+	}
+}
+
+bool IsCustomAction( TBasicAction *action )
+{
+	bool res = false;
+	int i;
+
+	for ( i = 0; FOTAActions->Count - 1; i++ ) {
+		if ( action = dynamic_cast<TBasicAction *>( &FOTAActions[ i ] ) ) {
+			res = true;
+			break;
+		}
+	}
+
+	return res;
+}
+
+void RemoveAction( TToolBar *TB )
+{
+	int i;
+
+	if ( !TB ) {
+		for ( i = TB->ButtonCount - 1; i >= 0; i-- ) {
+			if ( IsCustomAction( TB->Buttons[ i ]->Action ) ) {
+				TB->RemoveControl( TB->Buttons[ i ] );
+			}
+		}
+	}
+}
+
+void RemoveToolbarButtonsAssociatedWithActions( )
+{
+	_di_INTAServices NTAS;
+
+	if ( BorlandIDEServices->Supports( NTAS ) ) {
+		RemoveAction( NTAS->ToolBar[ sCustomToolBar ] );
+		RemoveAction( NTAS->ToolBar[ sStandardToolBar ] );
+		RemoveAction( NTAS->ToolBar[ sDebugToolBar ] );
+		RemoveAction( NTAS->ToolBar[ sViewToolBar ] );
+		RemoveAction( NTAS->ToolBar[ sDesktopToolBar ] );
+
+		RemoveAction( NTAS->ToolBar[ sInternetToolBar ] );
+		RemoveAction( NTAS->ToolBar[ sCORBAToolBar ] );
+
+		RemoveAction( NTAS->ToolBar[ sAlignToolbar ] );
+		RemoveAction( NTAS->ToolBar[ sBrowserToolbar ] );
+		RemoveAction( NTAS->ToolBar[ sHTMLDesignToolbar ] );
+		RemoveAction( NTAS->ToolBar[ sHTMLFormatToolbar ] );
+		RemoveAction( NTAS->ToolBar[ sHTMLTableToolbar ] );
+		RemoveAction( NTAS->ToolBar[ sPersonalityToolBar ] );
+		RemoveAction( NTAS->ToolBar[ sPositionToolbar ] );
+		RemoveAction( NTAS->ToolBar[ sSpacingToolbar ] );
+	}
+}
+

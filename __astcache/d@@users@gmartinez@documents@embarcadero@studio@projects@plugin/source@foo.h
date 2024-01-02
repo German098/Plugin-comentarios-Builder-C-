@@ -1,0 +1,24 @@
+﻿//---------------------------------------------------------------------------
+
+#ifndef FooH
+#define FooH
+
+#include <System.Classes.hpp>
+//---------------------------------------------------------------------------
+
+class Foo : public TObject
+{
+  public:
+	System::Classes::TNotifyEvent ne = 0;
+
+  private:
+	void TriggerMethod( )
+	{
+		if ( ne ) {
+			ne( this );
+		}
+	}
+};
+
+#endif
+

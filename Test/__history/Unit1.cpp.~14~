@@ -1,0 +1,12 @@
+//---------------------------------------------------------------------------
+
+#pragma hdrstop
+
+/** @par Descripción:
+ * Texto descripción.
+ * @note Posible anotación.
+ */
+#include "Unit1.h"
+//---------------------------------------------------------------------------
+#pragma package( smart_init )
+

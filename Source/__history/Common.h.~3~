@@ -1,0 +1,49 @@
+// Global variables
+
+enum TypeCommentBlock { None, Line, Block };
+
+struct CommentBlock {
+	TypeCommentBlock type;
+	int range[ 2 ] = { -1, -1 };
+	System::UnicodeString text = "";
+
+	void Init( )
+	{
+		type = TypeCommentBlock::None;
+		range[ 0 ] = -1;
+		range[ 1 ] = -1;
+		text = "";
+	}
+
+	CommentBlock( )
+	{
+		Init( );
+	}
+
+	CommentBlock( TypeCommentBlock tb, int r[ 2 ], System::UnicodeString t )
+	{
+		type = tb;
+		for ( int i = 0; i < 2; i++ )
+			range[ i ] = r[ i ];
+		text = t;
+	}
+
+	void Set( TypeCommentBlock tb, int r[ 2 ], System::UnicodeString t )
+	{
+		type = tb;
+		for ( int i = 0; i < 2; i++ )
+			range[ i ] = r[ i ];
+		text = t;
+	}
+
+	void Reset( )
+	{
+		type = TypeCommentBlock::None;
+		range[ 0 ] = -1;
+		range[ 1 ] = -1;
+		text = "";
+	}
+};
+
+extern CommentBlock rangeComment;
+

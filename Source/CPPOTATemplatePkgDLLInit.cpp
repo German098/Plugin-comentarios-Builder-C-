@@ -1,0 +1,89 @@
+//---------------------------------------------------------------------------
+
+#pragma hdrstop
+
+#include "CPPOTATemplatePkgDLLInit.h"
+#include "CPPOTATemplateMainWizard.h"
+#include "CPPOTATemplateKeyWizard.h"
+#include "CPPOTATemplateConstants.h"
+//#include "DocWizard.h"
+//#include "DelphiCode.h"
+#include <System.Win.Registry.hpp>
+#include <Classes.hpp>
+
+//---------------------------------------------------------------------------
+#pragma package( smart_init )
+
+//#pragma comment( lib, "WrapperParserDebug.lib" )
+
+// For DLLs...
+// We need to declare a local variable to accept the BorlandIDEServices reference from the
+// Wizard creation method below
+//: @note Not Required
+//_di_IBorlandIDEServices LocalIDEServices;
+// We also need to delcare the wizard entry point that is called by the IDE on loading a DLL
+extern "C" bool __stdcall __declspec( dllexport ) INITWIZARD0001( const _di_IBorlandIDEServices Service, TWizardRegisterProc RegisterWizard, TWizardTerminateProc & )
+{
+	// RegisterComponent
+	//: @note Not Required
+	// LocalIDEServices = Service; // get reference to the BorlandIDEServices
+	//_di_IOTAKeyboardServices IOTAKeyboardBinding;
+
+	// TCPPOTATemplateWizard *mainWizard = new TCPPOTATemplateWizard( "TCPPOTATemplateWizard" );
+	// ShowMessage( "Hola" );
+	RegisterWizard( new TCPPOTATemplateKeyWizard( "TCPPOTATemplateKeyWizard" ) );
+	// RegisterWizard( new TCPPOTATemplateWizard( "TCPPOTATemplateWizard" ) );
+
+	return true;
+}
+//#endif
+
+/*System::UnicodeString __fastcall TCPPOTATemplateWizard::GetDesigner( )
+{
+	_di_IOTAServices svc;
+	LocalIDEServices->Supports( svc );
+	return svc->GetActiveDesignerType( );
+}*/
+
+extern "C" HRESULT __stdcall __declspec( dllexport ) DllRegisterServer( )
+{
+	TRegistry *reg = new TRegistry( KEY_ALL_ACCESS );
+	bool active, openResult;
+	int j;
+	UnicodeString key_name, value_name, appstring;
+	TStringList *value_names;
+	UnicodeString value = L"Doxygen";
+	bool exists = false;
+	if ( !reg ) return E_FAIL;
+	reg->RootKey = HKEY_CURRENT_USER;
+	// value_name = L"d:\\Users\\GMARTINEZ\\Documents\\Embarcadero\\Studio\\Projects\\Plugin\\Win32\\Debug\\Project1.dll";
+	value_name = dllPath;
+	// key_name = L"Software\\Embarcadero\\BDS\\22.0\\Experts";
+	key_name = dllkeyPath;
+	openResult = reg->OpenKey( key_name, true );
+	if ( openResult ) {
+		value_names = new TStringList;
+		reg->GetValueNames( value_names );
+		if ( value_names->Count ) {
+			for ( int i = 0; i < value_names->Count; i++ ) {
+				if ( value_names[ 0 ][ i ] == value ) {
+					exists = true;
+					break;
+				}
+			}
+
+			if ( !exists ) reg->WriteString( value, value_name );
+		}
+		delete value_names;
+		reg->CloseKey( );
+	}
+	reg->Free( );
+
+	// LoadLibraryW( L"d:\\Users\\GMARTINEZ\\Documents\\Embarcadero\\Studio\\Projects\\Plugin\\Win32\\Debug\\Project1.dll" );
+	// LoadLibrary( dllPath );
+
+	ShowMessage( "Registrada" );
+
+	return S_OK;
+}
+

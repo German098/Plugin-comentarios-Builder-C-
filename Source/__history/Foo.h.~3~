@@ -1,0 +1,14 @@
+//---------------------------------------------------------------------------
+
+#ifndef FooH
+#define FooH
+
+#include <ToolsAPI.hpp>
+#include <ExtCtrls.hpp>
+#include "Common.h"
+//---------------------------------------------------------------------------
+
+class Foo : public TO
+
+#endif
+

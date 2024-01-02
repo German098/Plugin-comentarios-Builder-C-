@@ -1,0 +1,10 @@
+//---------------------------------------------------------------------------
+
+#ifndef ModuleNotifierH
+#define ModuleNotifierH
+
+#include "CPPOTATemplateNotifierObject.h"
+
+class ModuleNotifier : public
+
+#endif

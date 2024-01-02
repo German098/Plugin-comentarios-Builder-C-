@@ -1,0 +1,70 @@
+//---------------------------------------------------------------------------
+
+#ifndef CPPOTATemplateKeyWizardH
+#define CPPOTATemplateKeyWizardH
+
+#include <design/ToolsAPI.hpp>
+#include "KeyboardBinding.h"
+#include "CPPOTATemplateMainWizard.h"
+//---------------------------------------------------------------------------
+
+class PACKAGE TCPPOTATemplateKeyWizard : public TDGHNotifierObject, public IOTAMenuWizard // IOTAWizard
+{
+	typedef TDGHNotifierObject inherited;
+
+  private:
+	int FIDENotifier;
+	int IDEKeyBoardBinding;
+	TKeyboardBinding *KeyBoradBinding;
+	int FPointNotifier;
+	int FAboutBoxPlugin;
+	int imageIndex;
+	TAction *action_doxygen;
+	TAction *action_commentary;
+	DoxygenForm *doxyForm;
+
+	void __fastcall OnExecuteActionDoxygen( System::TObject *Sender );
+	void __fastcall OnExecuteActionCommentary( System::TObject *Sender );
+
+  protected:
+	// IOTAWizard
+	virtual UnicodeString __fastcall GetIDString( );
+	virtual UnicodeString __fastcall GetName( );
+	virtual TWizardState __fastcall GetState( );
+	virtual void __fastcall Execute( );
+	// IOTAMenuWizard
+	virtual System::UnicodeString __fastcall GetMenuText( );
+	// IOTANotifer
+	void __fastcall BeforeSave( );
+	void __fastcall AfterSave( );
+	void __fastcall Destroyed( );
+	void __fastcall Modified( );
+	// IInterface
+	virtual HRESULT __stdcall QueryInterface( const GUID &iid, void **obj );
+	virtual ULONG __stdcall AddRef( );
+	virtual ULONG __stdcall Release( );
+
+	void __fastcall ExtendToolsMenu( void *wizard, System::UnicodeString menu_name );
+	void __fastcall ExtendToolsBar( void *wizard, System::UnicodeString name );
+
+  public:
+	__fastcall TCPPOTATemplateKeyWizard( String strObjectName );
+	__fastcall ~TCPPOTATemplateKeyWizard( );
+
+	TAction *GetActionDoxygen( )
+	{
+		return action_doxygen;
+	}
+	TAction *GetActionCommentary( )
+	{
+		return action_commentary;
+	}
+
+	int GetImageIndex( ) const
+	{
+		return imageIndex;
+	}
+};
+
+#endif
+

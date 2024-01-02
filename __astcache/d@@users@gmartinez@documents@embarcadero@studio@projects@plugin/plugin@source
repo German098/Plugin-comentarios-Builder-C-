@@ -1,0 +1,39 @@
+//---------------------------------------------------------------------------
+
+#pragma hdrstop
+
+#include "File.h"
+#include "CPPOTATemplateMacros.h"
+//---------------------------------------------------------------------------
+#pragma package(smart_init)
+
+__fastcall File::File(const System::UnicodeString source) : ref_count(0), source(source) {
+
+}
+
+__fastcall File::~File() {
+
+}
+
+// IOTAFile
+System::UnicodeString __fastcall File::GetSource() {
+	return source;
+}
+
+System::TDateTime __fastcall File::GetAge() {
+	return -1;
+}
+
+// IInterface
+HRESULT __stdcall File::QueryInterface(const GUID&, void**) {
+	QUERY_INTERFACE(IOTAFile, iid, obj);
+	return inherited::QueryInterface(iid, obj);
+}
+
+ULONG __stdcall File::AddRef() {
+	return inherited::AddRef();
+}
+
+ULONG __stdcall File::Release() {
+	return inherited::Release();
+}

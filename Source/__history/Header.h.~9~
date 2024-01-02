@@ -1,0 +1,18 @@
+//---------------------------------------------------------------------------
+
+#ifndef HeaderH
+#define HeaderH
+
+//#include <toolsAPI.hpp>
+#include <string>
+
+
+std::string h1 = "/\**\r\n * @file\t";
+std::string h2 = "\r\n* @brief Descripción fichero.\r\n*\r\n* @author\t";
+std::string h3 = "\r\n* @date\t";
+std::string h4 = "\r\n*/\r\n";
+int lengthFile, lengthAuthor, lengthDate;
+
+UnicodeString __fastcall header_comment(System::UnicodeString file, System::UnicodeString author, System::UnicodeString date);
+
+#endif
